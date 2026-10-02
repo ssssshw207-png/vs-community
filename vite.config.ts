@@ -6,7 +6,7 @@ import { sites } from "./build/sites-vite-plugin";
 import { connectorPreview } from "./build/connector-preview-plugin.mjs";
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
-   "a4c5eb6a-2c87-428f-b8cf-657c5c435a7b";
+  "a4c5eb6a-2c87-428f-b8cf-657c5c435a7b";
 
 const { d1, r2 } = hostingConfig;
 
@@ -16,6 +16,7 @@ const managedLinux = readExecutionProfile() === "managed-linux";
 
 const localBindingConfig = {
   main: "./build/sites-worker.ts",
+  vars: {APP_URL: "https://vs-community.sconsulting77.workers.dev", GOOGLE_CLIENT_ID: "259105951840-4s3ggevfeitif19i6on7j03t7m4i6e83.apps.googleusercontent.com"},
   compatibility_flags: ["nodejs_compat"],
   d1_databases: d1
     ? [
