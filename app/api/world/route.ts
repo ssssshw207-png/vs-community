@@ -4,7 +4,7 @@ import { parseProfile,saveProfile } from '@/lib/profile';
 import { currentDay, questionFor } from '@/lib/questions';
 export const dynamic='force-dynamic';
 const countries=['KR','US','JP','GB','DE','FR','CA','BR','IN','AU','TH','OTHER'];
-function identity(req:Request){return {id:memberKey(req)||'anonymous',cookie:''}}
+async function identity(req:Request){return {id:(await memberKey(req))||'anonymous',cookie:''}}
 function answer(value:unknown,cookie='',status=200){return Response.json(value,{status,headers:{'Cache-Control':'no-store',...(cookie?{'Set-Cookie':cookie}:{})}})}
 async function payload(user:string){const db=database(),day=currentDay();const [profile,own,totals,regions,history]=await Promise.all([
  db.prepare('SELECT country,gender,age_group AS ageGroup,nickname FROM profiles WHERE user=?').bind(user).first(),
@@ -14,8 +14,8 @@ async function payload(user:string){const db=database(),day=currentDay();const [
  db.prepare('SELECT day,choice,country,reflection FROM votes WHERE user=? ORDER BY day DESC LIMIT 100').bind(user).all(),
 
 ]);return {profile,day,question:questionFor(day),own,totals:totals.results,regions:regions.results,history:history.results}}
-export async function GET(req:Request){const who=identity(req);try{return answer(await payload(who.id),who.cookie)}catch(e){console.error('world read failed',e);return answer({error:'잠시 데이터를 불러올 수 없습니다. 다시 시도해 주세요. / Please try again.'},who.cookie,503)}}
-export async function POST(req:Request){const user=memberKey(req);if(!user)return answer({error:'로그인 후 참여해 주세요. / Please sign in to participate.'},'',401);const who={id:user,cookie:''};try{
+export async function GET(req:Request){const who=await identity(req);try{return answer(await payload(who.id),who.cookie)}catch(e){console.error('world read failed',e);return answer({error:'잠시 데이터를 불러올 수 없습니다. 다시 시도해 주세요. / Please try again.'},who.cookie,503)}}
+export async function POST(req:Request){const user=await memberKey(req);if(!user)return answer({error:'로그인 후 참여해 주세요. / Please sign in to participate.'},'',401);const who={id:user,cookie:''};try{
  const origin=req.headers.get('origin');if(!origin||origin!==new URL(req.url).origin)return answer({error:'Request origin rejected'},who.cookie,403);
  if(Number(req.headers.get('content-length')||0)>10000)return answer({error:'Request too large'},who.cookie,413);
  const body=await req.json() as Record<string,unknown>,db=database(),day=currentDay();

@@ -5,7 +5,7 @@ export const dynamic='force-dynamic';
 const PAGE_SIZE=10;
 function respond(value:unknown,status=200){return Response.json(value,{status,headers:{'Cache-Control':'no-store'}})}
 export async function GET(req:Request){try{
- const user=memberKey(req);
+ const user=await memberKey(req);
  if(!user)return respond({error:'로그인 후 참여해 주세요. / Please sign in.'},401);
  const url=new URL(req.url),day=currentDay(),side=url.searchParams.get('side')||'0',parent=url.searchParams.get('parent');
  if(url.searchParams.get('day')!==day)return respond({error:'새 질문이 열렸습니다. 새로고침해 주세요. / Please refresh for the new question.'},409);
