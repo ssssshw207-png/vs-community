@@ -1,0 +1,6 @@
+import { sqliteTable, text, integer, primaryKey, index } from 'drizzle-orm/sqlite-core';
+export const votes=sqliteTable('votes',{ user:text('user').notNull(), day:text('day').notNull(), choice:integer('choice').notNull(),country:text('country').notNull(), reflection:text('reflection'), created:text('created').notNull() },t=>[primaryKey({columns:[t.user,t.day]}),index('idx_votes_day_country').on(t.day,t.country)]);
+export const comments=sqliteTable('comments',{id:text('id').primaryKey(),user:text('user').notNull(),day:text('day').notNull(),choice:integer('choice').notNull(),country:text('country').notNull(),name:text('name').notNull(),body:text('body').notNull(),parent:text('parent'),created:text('created').notNull()},t=>[index('idx_comments_day_created').on(t.day,t.created),index('idx_comments_user_created').on(t.user,t.created)]);
+export const reactions=sqliteTable('reactions',{user:text('user').notNull(),comment:text('comment').notNull(),kind:text('kind').notNull()},t=>[primaryKey({columns:[t.user,t.comment,t.kind]})]);
+
+export const profiles=sqliteTable('profiles',{user:text('user').primaryKey(),country:text('country').notNull(),gender:text('gender').notNull(),ageGroup:text('age_group').notNull(),nickname:text('nickname').notNull().default(''),updated:text('updated').notNull()});

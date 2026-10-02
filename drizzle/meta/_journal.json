@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1790863479227,
+      "tag": "0000_fuzzy_synch",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1790865766564,
+      "tag": "0001_crazy_jamie_braddock",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790917635010,
+      "tag": "0002_sour_roland_deschain",
+      "breakpoints": true
+    }
+  ]
+}

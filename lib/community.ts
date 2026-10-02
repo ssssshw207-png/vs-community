@@ -1,0 +1,4 @@
+export const regions=[['KR','🇰🇷','한국','South Korea'],['US','🇺🇸','미국','United States'],['JP','🇯🇵','일본','Japan'],['GB','🇬🇧','영국','United Kingdom'],['DE','🇩🇪','독일','Germany'],['FR','🇫🇷','프랑스','France'],['CA','🇨🇦','캐나다','Canada'],['BR','🇧🇷','브라질','Brazil'],['IN','🇮🇳','인도','India'],['AU','🇦🇺','호주','Australia'],['TH','🇹🇭','태국','Thailand'],['OTHER','🌐','그 외 지역','Other region']];
+export const ageGroups=[['under20','20세 미만','Under 20'],['20s','20대','20–29'],['30s','30대','30–39'],['40s','40대','40–49'],['50s','50대','50–59'],['60plus','60세 이상','60+'],['unspecified','선택하지 않음','Prefer not to say']];
+export const genders=[['female','여성','Woman'],['male','남성','Man'],['other','기타','Other'],['unspecified','선택 안 함','Prefer not to say']];
+export type Profile={country:string;gender:string;ageGroup:string;nickname:string};
