@@ -1,3 +1,4 @@
+import {pushTables} from '@/lib/push';
 import {questionsForDays} from '@/lib/topic-store';
 import {nicknameError} from '@/lib/nickname';
 import {database} from '@/db';
@@ -35,7 +36,10 @@ export async function DELETE(req:Request){
  if(!originAllowed(req))return response({error:'Request origin rejected'},403);
  if(Number(req.headers.get('content-length')||0)>1000)return response({error:'Request too large'},413);
  try{const body=await req.json() as Record<string,unknown>;if(body.confirm!=='DELETE_COMMUNITY_ACCOUNT')return response({error:'탈퇴 확인이 필요합니다. / Confirm account deletion.'},400);
- const db=database();await db.prepare('CREATE TABLE IF NOT EXISTS nickname_claims(name TEXT PRIMARY KEY,user TEXT NOT NULL UNIQUE)').run();await db.batch([
+ const db=database();await pushTables();await db.prepare('CREATE TABLE IF NOT EXISTS nickname_claims(name TEXT PRIMARY KEY,user TEXT NOT NULL UNIQUE)').run();await db.batch([
+ db.prepare('DELETE FROM push_devices WHERE user=?').bind(user),
+ db.prepare('DELETE FROM notifications WHERE user=?').bind(user),
+ db.prepare('DELETE FROM push_limits WHERE user=?').bind(user),
  db.prepare('DELETE FROM nickname_claims WHERE user=?').bind(user),
  db.prepare('DELETE FROM reactions WHERE user=?').bind(user),
  // Preserve other members’ replies, but erase this member’s comment text and identity.

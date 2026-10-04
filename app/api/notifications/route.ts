@@ -1,0 +1,8 @@
+import {memberKey} from '@/lib/member';
+import {database} from '@/db';
+import {pushTables} from '@/lib/push';
+import {adminTables} from '@/lib/admin';
+export const dynamic='force-dynamic';
+const answer=(value:unknown,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'no-store'}});
+export async function GET(req:Request){try{const user=await memberKey(req);if(!user)return answer({error:'로그인이 필요해요.'},401);await pushTables();await adminTables();const rows=await database().prepare("SELECT n.id,n.root,n.day,n.created,n.seen,c.name,c.body FROM notifications n JOIN comments c ON c.id=n.comment JOIN comments root ON root.id=n.root WHERE n.user=? AND c.user NOT LIKE 'deleted:%' AND NOT EXISTS(SELECT 1 FROM admin_hidden h WHERE h.comment=c.id OR h.comment=root.id) AND NOT EXISTS(SELECT 1 FROM reactions r WHERE r.comment IN (c.id,root.id) AND r.user=? AND r.kind='report') AND (SELECT COUNT(*) FROM reactions r WHERE r.comment=c.id AND r.kind='report')<3 AND (SELECT COUNT(*) FROM reactions r WHERE r.comment=root.id AND r.kind='report')<3 ORDER BY n.created DESC LIMIT 100").bind(user,user).all();return answer({items:rows.results})}catch{return answer({error:'알림을 불러오지 못했어요.'},503)}}
+export async function POST(req:Request){try{const user=await memberKey(req);if(!user)return answer({error:'로그인이 필요해요.'},401);if(req.headers.get('origin')!==new URL(req.url).origin)return answer({error:'잘못된 요청입니다.'},403);const body=await req.json() as {root?:string};if(typeof body.root!=='string'||body.root.length>60)return answer({error:'잘못된 알림입니다.'},400);await pushTables();await database().prepare('UPDATE notifications SET seen=1 WHERE user=? AND root=?').bind(user,body.root).run();return answer({ok:true})}catch{return answer({error:'처리하지 못했어요.'},503)}}

@@ -1,3 +1,5 @@
+import {notifyReply} from '@/lib/push';
+import {defer} from '@/lib/background';
 import {topicFor,questionsForDays} from '@/lib/topic-store';
 import {nicknameError} from '@/lib/nickname';
 import { database } from '@/db';
@@ -40,7 +42,7 @@ export async function POST(req:Request){const user=await memberKey(req);if(!user
  if(/씨발|시발|개새끼|병신|좆|\bfuck\b|\bnigger\b/i.test(text))return answer({error:'서로 존중하는 표현으로 바꿔 주세요. / Please use respectful language.'},who.cookie,400);
  const recent=await db.prepare('SELECT COUNT(*) AS n FROM comments WHERE user=? AND created>?').bind(who.id,new Date(Date.now()-60000).toISOString()).first<{n:number}>();if((recent?.n||0)>=3)return answer({error:'잠시 후 다시 작성해 주세요. / Please wait before posting again.'},who.cookie,429);
  let parent:null|string=null;if(body.parent){const p=await db.prepare('SELECT id FROM comments WHERE id=? AND day=? AND parent IS NULL AND NOT EXISTS(SELECT 1 FROM admin_hidden h WHERE h.comment=comments.id OR h.comment=comments.parent) AND NOT EXISTS(SELECT 1 FROM reactions r WHERE r.comment=comments.id AND r.user=? AND r.kind=\'report\') AND (SELECT COUNT(*) FROM reactions r WHERE r.comment=comments.id AND r.kind=\'report\')<3').bind(String(body.parent),day,who.id).first<{id:string}>();if(!p)return answer({error:'Comment no longer available'},who.cookie,404);parent=p.id}
- await db.prepare('INSERT INTO comments (id,user,day,choice,country,name,body,parent,created) VALUES (?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),who.id,day,vote.choice,vote.country,name,text,parent,new Date().toISOString()).run();
+ const commentId=crypto.randomUUID();await db.prepare('INSERT INTO comments (id,user,day,choice,country,name,body,parent,created) VALUES (?,?,?,?,?,?,?,?,?)').bind(commentId,who.id,day,vote.choice,vote.country,name,text,parent,new Date().toISOString()).run();if(parent)defer(notifyReply(who.id,commentId,parent,day));
  }else if(body.action==='reflection'){
  if(!['same','unsure','changed'].includes(String(body.value)))return answer({error:'Invalid reflection'},who.cookie,400);
  await db.prepare('UPDATE votes SET reflection=? WHERE user=? AND day=?').bind(body.value,who.id,day).run();

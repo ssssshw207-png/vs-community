@@ -33,5 +33,6 @@ export async function GET(req:Request){try{
  const args:unknown[]=[user,user,user,user,day,parent||Number(side),user];if(after)args.push(after.created,after.created,after.id);args.push(PAGE_SIZE+1);
  const rows=(await db.prepare(query).bind(...args).all<{id:string;created:string}>()).results;
  const hasMore=rows.length>PAGE_SIZE,items=rows.slice(0,PAGE_SIZE),last=items[items.length-1];
- return respond({items,nextCursor:hasMore?btoa(JSON.stringify({created:last.created,id:last.id})):null,pageSize:PAGE_SIZE});
+ let best:unknown[]=[];if(!parent){const bestQuery=query.replace(after?'AND (c.created<? OR (c.created=? AND c.id<?))':'','').replace('ORDER BY c.created DESC,c.id DESC LIMIT ?',"AND c.user NOT LIKE 'deleted:%' AND (SELECT COUNT(*) FROM reactions r WHERE r.comment=c.id AND r.kind='like')>0 ORDER BY likes DESC,c.created DESC,c.id DESC LIMIT ?");best=(await db.prepare(bestQuery).bind(user,user,user,user,day,Number(side),user,3).all()).results}
+ return respond({items,best,nextCursor:hasMore?btoa(JSON.stringify({created:last.created,id:last.id})):null,pageSize:PAGE_SIZE});
  }catch(e){console.error('comment page failed',e);return respond({error:'댓글을 불러오지 못했습니다. 다시 시도해 주세요. / Could not load comments. Try again.'},503)}}
