@@ -16,7 +16,7 @@ const managedLinux = readExecutionProfile() === "managed-linux";
 
 const localBindingConfig = {
   main: "./build/sites-worker.ts",
-  vars: {APP_URL: "https://vs-community.sconsulting77.workers.dev", GOOGLE_CLIENT_ID: "259105951840-4s3ggevfeitif19i6on7j03t7m4i6e83.apps.googleusercontent.com"},
+  vars: {ADMIN_EMAIL: "ssssshw207@gmail.com", APP_URL: "https://vs-community.sconsulting77.workers.dev", GOOGLE_CLIENT_ID: "259105951840-4s3ggevfeitif19i6on7j03t7m4i6e83.apps.googleusercontent.com"},
   compatibility_flags: ["nodejs_compat"],
   d1_databases: d1
     ? [

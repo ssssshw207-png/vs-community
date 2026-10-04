@@ -1,0 +1,3 @@
+export function normalizeNickname(value:unknown){return typeof value==='string'?value.normalize('NFKC').trim().replace(/ +/g,' '):''}
+export function nicknameError(value:unknown){const name=normalizeNickname(value);if(name.length<2||name.length>24)return '닉네임은 2–24자로 입력해 주세요.';if(!/^[가-힣A-Za-z0-9 _]+$/.test(name)||!/[가-힣A-Za-z]/.test(name))return '완성된 한글 또는 영문을 포함해 주세요. 자음·모음만 있는 이름과 숫자만 있는 이름은 사용할 수 없습니다.';if(/씨발|시발|개새끼|병신|좆|\bfuck\b|\bnigger\b/i.test(name))return '서로 존중하는 닉네임을 사용해 주세요.';if(/^(관리자|운영자|admin|administrator|moderator)$/i.test(name))return '운영자를 사칭하는 닉네임은 사용할 수 없습니다.';return null}
+export function nicknameKey(name:string){return normalizeNickname(name).toLowerCase()}
