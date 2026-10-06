@@ -30,7 +30,7 @@ header{background:#11151ef2}button:focus-visible,a:focus-visible,select:focus-vi
 .result-bar span:first-child,.mini-track span{background:var(--choice-a)}.result-bar span:last-child{background:var(--choice-b)}
 .argument.side0{background:#f4f1e80b;border-color:var(--choice-a)}.argument.side1{background:#75a7ff0b;border-color:var(--choice-b)}
 .argument.side0>.argument-label{color:var(--choice-a)}.argument.side1>.argument-label{color:var(--choice-b)}
-.comment-filters button:first-child.selected{background:var(--choice-a);color:#172238}.comment-filters button:nth-child(2).selected{background:var(--choice-b);color:#10203c}
+.comment-filters button:first-child.selected{background:var(--blue);color:#242119}.comment-filters button:nth-child(2).selected{background:var(--choice-a);color:#172238}.comment-filters button:nth-child(3).selected{background:var(--choice-b);color:#10203c}
 .avatar.side0{color:var(--choice-a);background:#f4f1e80b}.avatar.side1{color:var(--choice-b);background:#75a7ff10}
 .history-pick.side0{background:#f4f1e815;color:var(--choice-a)}.history-pick.side1{background:#75a7ff18;color:var(--choice-b)}
 
