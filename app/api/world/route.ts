@@ -1,3 +1,4 @@
+import {guestId,newGuest,claimGuestVotes,clearGuestCookie} from '@/lib/guest';
 import {notifyReply} from '@/lib/push';
 import {defer} from '@/lib/background';
 import {topicFor,questionsForDays} from '@/lib/topic-store';
@@ -8,7 +9,7 @@ import { parseProfile,saveProfile,nicknameConflict } from '@/lib/profile';
 import { currentDay } from '@/lib/questions';
 export const dynamic='force-dynamic';
 const countries=['KR','US','JP','GB','DE','FR','CA','BR','IN','AU','TH','OTHER'];
-async function identity(req:Request){return {id:(await memberKey(req))||'anonymous',cookie:''}}
+async function identity(req:Request){const member=await memberKey(req),guest=guestId(req.headers.get('cookie'));if(member){if(guest)await claimGuestVotes(member,guest);return {id:member,cookie:guest?clearGuestCookie:'',member:true}}return {...(guest?{id:guest,cookie:''}:newGuest()),member:false}}
 function answer(value:unknown,cookie='',status=200){return Response.json(value,{status,headers:{'Cache-Control':'no-store',...(cookie?{'Set-Cookie':cookie}:{})}})}
 async function payload(user:string){const db=database(),day=currentDay();const [profile,own,totals,regions,history]=await Promise.all([
  db.prepare('SELECT country,gender,age_group AS ageGroup,nickname FROM profiles WHERE user=?').bind(user).first(),
@@ -18,18 +19,19 @@ async function payload(user:string){const db=database(),day=currentDay();const [
  db.prepare('SELECT day,choice,country,reflection FROM votes WHERE user=? ORDER BY day DESC LIMIT 100').bind(user).all(),
 
 ]);const topic=await topicFor(day),historyQuestions=await questionsForDays(history.results.map(v=>String((v as {day:string}).day)));return {profile,day,question:topic.question,image:topic.image,historyQuestions,own,totals:totals.results,regions:regions.results,history:history.results}}
-export async function GET(req:Request){const who=await identity(req);try{return answer(await payload(who.id),who.cookie)}catch(e){console.error('world read failed',e);return answer({error:'잠시 데이터를 불러올 수 없습니다. 다시 시도해 주세요. / Please try again.'},who.cookie,503)}}
-export async function POST(req:Request){const user=await memberKey(req);if(!user)return answer({error:'로그인 후 참여해 주세요. / Please sign in to participate.'},'',401);const who={id:user,cookie:''};try{
+export async function GET(req:Request){try{const who=await identity(req);return answer(await payload(who.id),who.cookie)}catch(e){console.error('world read failed',e);return answer({error:'잠시 데이터를 불러올 수 없습니다. 다시 시도해 주세요. / Please try again.'},'',503)}}
+export async function POST(req:Request){let who={id:'',cookie:'',member:false};try{
  const origin=req.headers.get('origin');if(!origin||origin!==new URL(req.url).origin)return answer({error:'Request origin rejected'},who.cookie,403);
  if(Number(req.headers.get('content-length')||0)>10000)return answer({error:'Request too large'},who.cookie,413);
  const body=await req.json() as Record<string,unknown>,db=database(),day=currentDay();
+ if(body.action!=='vote'&&!await memberKey(req))return answer({error:'댓글 작성과 반응은 로그인 후 이용해 주세요. / Sign in to post or react.'},'',401);
+ who=await identity(req);
  await topicFor(day);
  if(body.day!==day)return answer({error:'새 질문이 열렸습니다. 새로고침해 주세요. / A new question is ready. Refresh.'},who.cookie,409);
  if(body.action==='profile'){
  const invalid=nicknameError(body.nickname);if(invalid)return answer({error:invalid},'',400);const profile=parseProfile(body);if(!profile)return answer({error:'닉네임은 2–24자로, 성별·나이대·나라는 목록에서 선택해 주세요. / Use a 2–24 character nickname and select your profile details.'},who.cookie,400);
  await saveProfile(db,who.id,profile);
  }else if(body.action==='vote'){
- const profile=await db.prepare('SELECT nickname FROM profiles WHERE user=?').bind(who.id).first<{nickname:string}>();if(!profile?.nickname)return answer({error:'먼저 내 정보를 등록해 주세요. / Complete your profile first.'},'',403);
  if((body.choice!==0&&body.choice!==1)||!countries.includes(String(body.country)))return answer({error:'Please choose an option and region'},who.cookie,400);
  await db.prepare('INSERT INTO votes (user,day,choice,country,created) VALUES (?,?,?,?,?) ON CONFLICT(user,day) DO NOTHING').bind(who.id,day,body.choice,body.country,new Date().toISOString()).run();
  }else{

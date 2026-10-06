@@ -39,3 +39,6 @@ header{background:#11151ef2}button:focus-visible,a:focus-visible,select:focus-vi
   white-space:pre-line;
   overflow-wrap:anywhere;
 }
+
+/* Public entry and deferred sign-in. */
+.vote-region select{max-width:180px;background:#222b39;color:var(--ink);border:1px solid #414b5e;border-radius:8px;padding:7px 9px;font-size:14px}.modal a.primary{display:inline-flex;align-items:center;justify-content:center;padding:12px 20px;border-radius:8px;background:var(--blue);color:#242119;font-weight:700}#discussion{scroll-margin-top:24px}
