@@ -11,14 +11,14 @@ export async function GET(req: Request) {
     await promoTables(db);
     const setting = await db.prepare('SELECT enabled FROM promotion_settings WHERE id=1').first<{ enabled: number }>();
     const rows = await db.prepare('SELECT * FROM promotion_posts ORDER BY day DESC LIMIT 30').all<PromoRow>();
-    return answer({ enabled: !!setting?.enabled, configured: !!(config.key && config.channelId), preview: await promotionPreview(), rows: rows.results });
+    return answer({ enabled: !!setting?.enabled, configured: !!(config.key && config.channelId), preview: await promotionPreview(), noonPreview: await promotionPreview('noon'), rows: rows.results });
   } catch { return answer({ error: '홍보 설정을 불러오지 못했어요.' }, 503); }
 }
 export async function POST(req: Request) {
   if (req.headers.get('origin') !== new URL(req.url).origin) return answer({ error: '잘못된 요청이에요.' }, 403);
   if (!await adminUser(req)) return answer({ error: '관리자 로그인이 필요해요.' }, 403);
   try {
-    const body = await req.json() as { action?: string; enabled?: boolean }, db = database(), config = promotionConfig();
+    const body = await req.json() as { action?: string; enabled?: boolean; slot?: string }, db = database(), config = promotionConfig();
     await promoTables(db);
     if (body.action === 'check') return answer({ ok: true, channel: await checkPromoChannel(config) });
     if (body.action === 'toggle' && typeof body.enabled === 'boolean') {
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     }
     if (body.action === 'draft') {
       await checkPromoChannel(config);
-      const preview = await promotionPreview();
+      const preview = await promotionPreview(body.slot === 'noon' ? 'noon' : 'morning');
       const post = await createBufferPost(config, preview, true);
       return answer({ ok: true, postId: post.id });
     }
