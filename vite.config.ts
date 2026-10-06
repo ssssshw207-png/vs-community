@@ -16,7 +16,9 @@ const managedLinux = readExecutionProfile() === "managed-linux";
 
 const localBindingConfig = {
   main: "./build/sites-worker.ts",
-  vars: {ADMIN_EMAIL: "ssssshw207@gmail.com", APP_URL: "https://vs-community.sconsulting77.workers.dev", GOOGLE_CLIENT_ID: "259105951840-4s3ggevfeitif19i6on7j03t7m4i6e83.apps.googleusercontent.com"},
+  keep_vars: true,
+  triggers: { crons: ["5,10,15,20 22 * * *"] },
+  vars: {BUFFER_THREADS_CHANNEL_ID: "6ac51ff46a5c39ccb631f698", BUFFER_ORGANIZATION_ID: "6ac51eeec724593e2654b055", ADMIN_EMAIL: "ssssshw207@gmail.com", APP_URL: "https://vs-community.sconsulting77.workers.dev", GOOGLE_CLIENT_ID: "259105951840-4s3ggevfeitif19i6on7j03t7m4i6e83.apps.googleusercontent.com"},
   compatibility_flags: ["nodejs_compat"],
   d1_databases: d1
     ? [

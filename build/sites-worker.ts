@@ -1,9 +1,14 @@
+import {scheduledPromotion} from '../lib/promotion';
 import {runWithBackground} from "../lib/background";
 import handler from "vinext/server/fetch-handler";
 import { runWithConnectorBinding } from "../lib/connector-context";
 import type { ConnectorBinding } from "../lib/connector-contract.mjs";
 
 export default {
+  async scheduled(controller: ScheduledController) {
+    // Await completion so Cron history records runtime/DB failures.
+    await scheduledPromotion(new Date(controller.scheduledTime));
+  },
   fetch(request: Request, env: Cloudflare.Env, ctx: ExecutionContext<{ CONNECTORS?: ConnectorBinding }>) {
     let binding = ctx.props?.CONNECTORS;
     // Local preview emulates the same request-scoped capability. This branch and
