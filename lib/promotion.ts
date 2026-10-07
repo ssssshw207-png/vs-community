@@ -2,7 +2,7 @@ import { env } from 'cloudflare:workers';
 import { database } from '@/db';
 import { defaultTopic, topicFor } from './topic-store';
 import { adminTables } from './admin';
-import { nextPostingDay, type PromoSlot } from './daily-clock';
+import { nextPostingDay, activePromoSlot, type PromoSlot } from './daily-clock';
 import { promoContent, promoTables, runDailyPromotion, type PromoConfig } from './promotion-runtime';
 export function promotionConfig(): PromoConfig {
   const e = env as unknown as Record<string, string>;
@@ -18,9 +18,7 @@ export async function promotionPreview(slot: PromoSlot = 'morning') {
   return { day, ...promoContent(day, topic, promotionConfig().origin, slot) };
 }
 export async function scheduledPromotion(now = new Date()) {
-  const db = database();
-  await promoTables(db);
-  const morning = await runDailyPromotion(db, promotionConfig(), topicFor, now);
-  const noon = await runDailyPromotion(db, promotionConfig(), topicFor, now, fetch, 'noon');
-  return { morning, noon };
+  const slot = activePromoSlot(now);
+  if (!slot) return { status: 'outside_window' };
+  return runDailyPromotion(database(), promotionConfig(), topicFor, now, fetch, slot);
 }

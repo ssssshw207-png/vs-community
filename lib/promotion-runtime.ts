@@ -1,6 +1,6 @@
 import type { Question } from './questions';
 import { postingAt, questionDay, type PromoSlot } from './daily-clock';
-import noonHooks from './promotion-noon.json';
+import socialCopy from './promotion-social.json';
 
 export type PromoConfig = { key: string; channelId: string; origin: string; organizationId: string };
 export type PromoTopic = { question: Question; image: string };
@@ -11,21 +11,20 @@ export class PromoError extends Error {
 }
 const shorten = (text: string, n: number) => Array.from(text.replace(/\s+/g, ' ').trim()).slice(0, n).join('');
 export function promoContent(day: string, topic: PromoTopic, origin: string, slot: PromoSlot = 'morning') {
-  const link = new URL('/', origin);
-  link.search = new URLSearchParams({ utm_source: 'threads', utm_medium: 'social', utm_campaign: (slot === 'noon' ? 'noon-' : 'daily-') + day }).toString();
   const q = topic.question;
-  let text = `오늘의 사상 질문\n\n${shorten(q.title[0], 150)}\n\nA. ${shorten(q.options[0][0], 75)}\nB. ${shorten(q.options[1][0], 75)}\n\n너는 어느 쪽이야? 반대편의 이유도 들어보자.\n로그인 없이 선택하고 댓글을 읽을 수 있어.\n${link.href}`;
-  if (slot === 'noon') {
-    const hook = (noonHooks as Record<string, string>)[q.title[0]] || `오늘의 질문: ${shorten(q.title[0], 150)}\n\n내가 선택한 쪽의 비용을 가장 가까운 사람이 감당해도 같은 답을 고를까? 반대편이 지키려는 가치는 무엇일까?`;
-    text = `점심의 생각 실험\n\n${hook}\n\n아침에 고른 답, 지금도 같아? 이유를 남겨줘.\n${link.href}`;
-  }
-  if (Array.from(text).length > 500) throw new PromoError('홍보 문장이 Threads 글자 제한을 넘었어요.');
-  // Seven axis illustrations are exported as PNG, a supported social media format.
-  const match = topic.image.match(/\/code-(\d{3})\.svg$/);
-  const labels = ['정치', '젠더', '계급', '개방성', '개인 가치', '사회 관점', '윤리 판단'];
-  const axis = labels.findIndex(label => q.tag[0].startsWith(label));
-  const image = match && axis >= 0 ? `/images/promotion/axis-${axis + 1}.png` : topic.image.endsWith('.svg') ? '/images/community-you.png' : topic.image;
-  return { text, image: new URL(image, origin).href, dueAt: postingAt(day, slot) };
+  const copy = (socialCopy as Record<string, Record<PromoSlot, string>>)[q.title[0]];
+  // Custom questions receive conservative, self-contained fallback copy.
+  const title = shorten(q.title[0].replace(/https?:\/\/\S+/g, ''), 150);
+  const fallback: Record<PromoSlot, string> = {
+    morning: `${title}\n\n같은 질문을 읽어도 가장 먼저 떠오르는 사람이나 장면은 다를 수 있어. 누군가는 자신이 지키고 싶은 것을 생각하고, 누군가는 그 선택 때문에 힘들어질 사람을 생각하겠지.\n\n반대하는 이유를 듣다 보면 몰랐던 사정이 보일 때도 있어. 그렇다고 곧바로 내 생각을 바꿔야 하는 것은 아닐 거야.\n\n쉽게 답하지 못한다고 생각이 부족한 건 아닐 수 있어. 어느 쪽이든 남는 아쉬움이 있다는 걸 알아서 망설이는 걸 수도 있지. 오늘은 조금 천천히 생각해 봐도 좋겠어.`,
+    noon: `${title}\n\n이 선택의 비용을 내 가족이 감당해야 해도 같은 답을 고를까?`,
+    afternoon: `${title}\n\n내가 지금보다 생활에 여유가 있다면 어떤 답을 고르게 될까?`,
+    evening: `${title}\n\n반대편 사람은 무엇을 잃을까 봐 걱정하는 걸까? 그 마음을 먼저 듣고 싶어.`,
+    night: `${title}\n\n오늘 내 답이 조금 바뀌었다면 어떤 장면 때문일까? 그대로라면 꼭 지키고 싶은 것은 무엇일까?`
+  };
+  const text = copy?.[slot] || fallback[slot];
+  if (Array.from(text).length > 480) throw new PromoError('게시 글이 글자 제한을 넘었어요.');
+  return { text, image: '', dueAt: postingAt(day, slot) };
 }
 export async function bufferRequest<T>(config: PromoConfig, query: string, fetcher: typeof fetch = fetch, mutation = false): Promise<T> {
   if (!config.key || !config.channelId) throw new PromoError('Cloudflare의 BUFFER_API_KEY와 BUFFER_THREADS_CHANNEL_ID를 확인해 주세요.');
@@ -54,20 +53,20 @@ export async function promoTables(db: D1Database) {
   ]);
 }
 export async function createBufferPost(config: PromoConfig, content: ReturnType<typeof promoContent>, draft: boolean, fetcher: typeof fetch = fetch) {
-  const data = await bufferRequest<{ createPost: { post?: { id: string; dueAt?: string }; message?: string } }>(config, `mutation { createPost(input: { text: ${JSON.stringify((draft ? '[연결 테스트 초안]\n' : '') + content.text)} channelId: ${JSON.stringify(config.channelId)} schedulingType: automatic mode: ${draft ? 'addToQueue' : 'customScheduled'} ${draft ? 'saveToDraft: true' : 'dueAt: ' + JSON.stringify(content.dueAt)} assets: [{ image: { url: ${JSON.stringify(content.image)} } }] }) { ... on PostActionSuccess { post { id dueAt } } ... on MutationError { message } } }`, fetcher, true);
+  const data = await bufferRequest<{ createPost: { post?: { id: string; dueAt?: string }; message?: string } }>(config, `mutation { createPost(input: { text: ${JSON.stringify((draft ? '[연결 테스트 초안]\n' : '') + content.text)} channelId: ${JSON.stringify(config.channelId)} schedulingType: automatic mode: ${draft ? 'addToQueue' : 'customScheduled'} ${draft ? 'saveToDraft: true' : 'dueAt: ' + JSON.stringify(content.dueAt)} ${content.image ? 'assets: [{ image: { url: ' + JSON.stringify(content.image) + ' } }]' : ''} }) { ... on PostActionSuccess { post { id dueAt } } ... on MutationError { message } } }`, fetcher, true);
   if (!data.createPost.post?.id) throw new PromoError('Buffer에서 게시물을 만들지 못했어요. Buffer 연결·권한·이미지 주소를 확인해 주세요.');
   return data.createPost.post;
 }
-async function findRemote(config: PromoConfig, text: string, fetcher: typeof fetch) {
-  const data = await bufferRequest<{ posts: { edges: { node: { id: string; text: string; status: string } }[] } }>(config, `query { posts(first: 100, input: { organizationId: ${JSON.stringify(config.organizationId)} filter: { channelIds: [${JSON.stringify(config.channelId)}] } }) { edges { node { id text status } } } }`, fetcher);
-  return data.posts.edges.map(e => e.node).find(p => p.text === text);
+async function findRemote(config: PromoConfig, text: string, dueAt: string, fetcher: typeof fetch) {
+  const data = await bufferRequest<{ posts: { edges: { node: { id: string; text: string; status: string; dueAt: string | null } }[] } }>(config, `query { posts(first: 100, input: { organizationId: ${JSON.stringify(config.organizationId)} filter: { channelIds: [${JSON.stringify(config.channelId)}] } }) { edges { node { id text status dueAt } } } }`, fetcher);
+  return data.posts.edges.map(e => e.node).find(p => p.text === text && p.dueAt && Date.parse(p.dueAt) === Date.parse(dueAt));
 }
 export async function runDailyPromotion(db: D1Database, config: PromoConfig, getTopic: (day: string) => Promise<PromoTopic>, now = new Date(), fetcher: typeof fetch = fetch, slot: PromoSlot = 'morning') {
   await promoTables(db);
   const setting = await db.prepare('SELECT enabled FROM promotion_settings WHERE id=1').first<{ enabled: number }>();
   if (!setting?.enabled) return { status: 'disabled' };
   const day = questionDay(now), dueAt = postingAt(day, slot);
-  const recordChannel = slot === 'noon' ? config.channelId + ':noon' : config.channelId;
+  const recordChannel = slot === 'morning' ? config.channelId : config.channelId + ':' + slot;
   const due = Date.parse(dueAt);
   // Prepare each slot 30–5 minutes before its posting time in Seoul.
   if (now.getTime() < due - 30 * 60000 || now.getTime() >= due - 5 * 60000) return { status: 'outside_window' };
@@ -76,7 +75,7 @@ export async function runDailyPromotion(db: D1Database, config: PromoConfig, get
   if (row && ['submitting', 'uncertain'].includes(row.status)) {
     // A timed-out write may have succeeded. Never repeat it blindly.
     if (row.status === 'submitting' && Date.parse(row.updated) > now.getTime() - 120000) return { status: 'busy' };
-    const remote = await findRemote(config, row.text, fetcher);
+    const remote = await findRemote(config, row.text, dueAt, fetcher);
     if (remote) {
       await db.prepare("UPDATE promotion_posts SET status='queued',post_id=?,error=NULL,updated=? WHERE day=? AND channel=?").bind(remote.id, now.toISOString(), day, recordChannel).run();
       return { status: 'queued', postId: remote.id };

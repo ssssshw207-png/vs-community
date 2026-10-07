@@ -1,3 +1,4 @@
+import { promoSlots, promoTimes, isPromoSlot } from '@/lib/daily-clock';
 import { adminUser } from '@/lib/admin';
 import { database } from '@/db';
 import { promotionConfig, promotionPreview } from '@/lib/promotion';
@@ -11,7 +12,7 @@ export async function GET(req: Request) {
     await promoTables(db);
     const setting = await db.prepare('SELECT enabled FROM promotion_settings WHERE id=1').first<{ enabled: number }>();
     const rows = await db.prepare('SELECT * FROM promotion_posts ORDER BY day DESC LIMIT 30').all<PromoRow>();
-    return answer({ enabled: !!setting?.enabled, configured: !!(config.key && config.channelId), preview: await promotionPreview(), noonPreview: await promotionPreview('noon'), rows: rows.results });
+    return answer({ enabled: !!setting?.enabled, configured: !!(config.key && config.channelId), previews: await Promise.all(promoSlots.map(async slot => ({ slot, time: promoTimes[slot], ...await promotionPreview(slot) }))), rows: rows.results });
   } catch { return answer({ error: '홍보 설정을 불러오지 못했어요.' }, 503); }
 }
 export async function POST(req: Request) {
@@ -27,8 +28,9 @@ export async function POST(req: Request) {
       return answer({ ok: true });
     }
     if (body.action === 'draft') {
+      if (!isPromoSlot(body.slot)) return answer({ error: '게시 시간을 선택해 주세요.' }, 400);
       await checkPromoChannel(config);
-      const preview = await promotionPreview(body.slot === 'noon' ? 'noon' : 'morning');
+      const preview = await promotionPreview(body.slot);
       const post = await createBufferPost(config, preview, true);
       return answer({ ok: true, postId: post.id });
     }
