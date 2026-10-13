@@ -1,6 +1,7 @@
 import type { Question } from './questions';
-import { postingAt, questionDay, type PromoSlot } from './daily-clock';
-import socialCopy from './promotion-social.json';
+import { postingAt, questionDay, promoSlots, type PromoSlot } from './daily-clock';
+import morningCopy from './promotion-life-morning.json';
+import shortCopy from './promotion-life-short.json';
 
 export type PromoConfig = { key: string; channelId: string; origin: string; organizationId: string };
 export type PromoTopic = { question: Question; image: string };
@@ -12,17 +13,17 @@ export class PromoError extends Error {
 const shorten = (text: string, n: number) => Array.from(text.replace(/\s+/g, ' ').trim()).slice(0, n).join('');
 export function promoContent(day: string, topic: PromoTopic, origin: string, slot: PromoSlot = 'morning') {
   const q = topic.question;
-  const copy = (socialCopy as Record<string, Record<PromoSlot, string>>)[q.title[0]];
-  // Custom questions receive conservative, self-contained fallback copy.
-  const title = shorten(q.title[0].replace(/https?:\/\/\S+/g, ''), 150);
-  const fallback: Record<PromoSlot, string> = {
-    morning: `${title}\n\n같은 질문을 읽어도 가장 먼저 떠오르는 사람이나 장면은 다를 수 있어. 누군가는 자신이 지키고 싶은 것을 생각하고, 누군가는 그 선택 때문에 힘들어질 사람을 생각하겠지.\n\n반대하는 이유를 듣다 보면 몰랐던 사정이 보일 때도 있어. 그렇다고 곧바로 내 생각을 바꿔야 하는 것은 아닐 거야.\n\n쉽게 답하지 못한다고 생각이 부족한 건 아닐 수 있어. 어느 쪽이든 남는 아쉬움이 있다는 걸 알아서 망설이는 걸 수도 있지. 오늘은 조금 천천히 생각해 봐도 좋겠어.`,
-    noon: `${title}\n\n이 선택의 비용을 내 가족이 감당해야 해도 같은 답을 고를까?`,
-    afternoon: `${title}\n\n내가 지금보다 생활에 여유가 있다면 어떤 답을 고르게 될까?`,
-    evening: `${title}\n\n반대편 사람은 무엇을 잃을까 봐 걱정하는 걸까? 그 마음을 먼저 듣고 싶어.`,
-    night: `${title}\n\n오늘 내 답이 조금 바뀌었다면 어떤 장면 때문일까? 그대로라면 꼭 지키고 싶은 것은 무엇일까?`
-  };
-  const text = copy?.[slot] || fallback[slot];
+  const dayNumber = Math.floor((Date.parse(day + 'T00:00:00Z') - Date.parse('2026-10-14T00:00:00Z')) / 86400000);
+  const modulo = (n: number, length: number) => ((n % length) + length) % length;
+  // Each day draws one post from every category; category/time pairings rotate.
+  // The finite short-copy bank repeats every ten days, disclosed in the admin UI.
+  const shortIndex = promoSlots.indexOf(slot) - 1;
+  const group = shortCopy[modulo(shortIndex + dayNumber, shortCopy.length)];
+  const title = shorten(q.title[0].replace(/https?:\/\/\S+/g, ''), 180);
+  const option = (index: number) => shorten(q.options[index][0].replace(/https?:\/\/\S+/g, ''), 90);
+  const morning = (morningCopy as Record<string, string>)[q.title[0]]
+    || `${title}\n\n한쪽은 “${option(0)}”.\n다른 한쪽은 “${option(1)}”.\n\n내 일이라면 어느 쪽을 고르게 될까.\n그렇게 고르는 이유도 듣고 싶어.`;
+  const text = slot === 'morning' ? morning : group.posts[modulo(dayNumber, group.posts.length)];
   if (Array.from(text).length > 480) throw new PromoError('게시 글이 글자 제한을 넘었어요.');
   return { text, image: '', dueAt: postingAt(day, slot) };
 }

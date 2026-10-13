@@ -5,9 +5,9 @@ export function questionDay(now = new Date()) {
 export function nextQuestionAt(now = new Date()) {
   return Date.parse(questionDay(now) + 'T22:00:00Z');
 }
-export const promoSlots = ['morning', 'noon', 'afternoon', 'evening', 'night'] as const;
+export const promoSlots = ['morning', 'at0830', 'at0930', 'at1030', 'at1130', 'noon', 'at1300', 'at1400', 'afternoon', 'at1600', 'at1700', 'evening', 'at1900', 'at2000', 'night'] as const;
 export type PromoSlot = typeof promoSlots[number];
-export const promoTimes: Record<PromoSlot, string> = { morning: '07:30', noon: '12:00', afternoon: '15:00', evening: '18:00', night: '21:00' };
+export const promoTimes: Record<PromoSlot, string> = { morning: '07:30', at0830: '08:30', at0930: '09:30', at1030: '10:30', at1130: '11:30', noon: '12:00', at1300: '13:00', at1400: '14:00', afternoon: '15:00', at1600: '16:00', at1700: '17:00', evening: '18:00', at1900: '19:00', at2000: '20:00', night: '21:00' };
 export function isPromoSlot(value: unknown): value is PromoSlot {
   return typeof value === 'string' && (promoSlots as readonly string[]).includes(value);
 }

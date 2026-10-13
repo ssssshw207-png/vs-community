@@ -1,11 +1,23 @@
 import records from './topic-bank.json';
+import lifeRecords from './topic-life.json';
 import previousRecords from './topic-bank-v1.json';
 import legacyRecords from './topic-editorial-legacy.json';
 import type {Question} from './questions';
-export const topicBank=records as {id:string;question:Question;image:string}[];
+const octoberBank=records as {id:string;question:Question;image:string}[];
+export const topicBank=lifeRecords as {id:string;question:Question;image:string}[];
+export const topicImages=[...records,...previousRecords,...lifeRecords].map(t=>t.image);
 const previousBank=previousRecords as {id:string;question:Question;image:string}[];
-export function bankIndexFor(day:string){return ((Math.floor(Date.parse(day+'T00:00:00Z')/86400000)-Math.floor(Date.parse('2026-10-07T00:00:00Z')/86400000))%topicBank.length+topicBank.length)%topicBank.length}
-export function bankTopicFor(day:string){if(day<'2026-10-07'){const index=((Math.floor(Date.parse(day+'T00:00:00Z')/86400000)-Math.floor(Date.parse('2026-10-06T00:00:00Z')/86400000))%previousBank.length+previousBank.length)%previousBank.length;return previousBank[index]}return topicBank[bankIndexFor(day)]}
+export const LIFE_START_DAY='2026-10-14';
+function indexFor(day:string,start:string,length:number){
+ const delta=Math.floor((Date.parse(day+'T00:00:00Z')-Date.parse(start+'T00:00:00Z'))/86400000);
+ return ((delta%length)+length)%length;
+}
+export function bankIndexFor(day:string){return indexFor(day,LIFE_START_DAY,topicBank.length)}
+export function bankTopicFor(day:string){
+ if(day<'2026-10-07')return previousBank[indexFor(day,'2026-10-06',previousBank.length)];
+ if(day<LIFE_START_DAY)return octoberBank[indexFor(day,'2026-10-07',octoberBank.length)];
+ return topicBank[bankIndexFor(day)];
+}
 
 // Published titles and choices remain frozen. Only untouched first-edition
 // editorial fields receive the new explanations; administrator edits win.
