@@ -1,3 +1,5 @@
+import { campaignStart, campaignEnd, campaignDays, campaignState } from '@/lib/promotion-campaign';
+import { questionDay } from '@/lib/daily-clock';
 import { isPromoSlot } from '@/lib/daily-clock';
 import { adminUser } from '@/lib/admin';
 import { database } from '@/db';
@@ -12,7 +14,7 @@ export async function GET(req: Request) {
     await promoTables(db);
     const setting = await db.prepare('SELECT enabled FROM promotion_settings WHERE id=1').first<{ enabled: number }>();
     const rows = await db.prepare('SELECT * FROM promotion_posts ORDER BY updated DESC LIMIT 90').all<PromoRow>();
-    return answer({ enabled: !!setting?.enabled, configured: !!(config.key && config.channelId), previews: await promotionPreviews(), rows: rows.results });
+    return answer({ campaign: { start: campaignStart, end: campaignEnd, days: campaignDays, posts: campaignDays * 15, state: campaignState(questionDay()) }, enabled: !!setting?.enabled, configured: !!(config.key && config.channelId), previews: await promotionPreviews(), rows: rows.results });
   } catch { return answer({ error: '홍보 설정을 불러오지 못했어요.' }, 503); }
 }
 export async function POST(req: Request) {
@@ -29,8 +31,9 @@ export async function POST(req: Request) {
     }
     if (body.action === 'draft') {
       if (!isPromoSlot(body.slot)) return answer({ error: '게시 시간을 선택해 주세요.' }, 400);
-      await checkPromoChannel(config);
       const preview = await promotionPreview(body.slot);
+      if (!preview.text.trim()) return answer({ error: '100일 원고가 종료됐어요. 새 원고를 추가해 주세요.' }, 400);
+      await checkPromoChannel(config);
       const post = await createBufferPost(config, preview, true);
       return answer({ ok: true, postId: post.id });
     }

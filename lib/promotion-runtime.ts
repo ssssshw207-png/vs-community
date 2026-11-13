@@ -1,3 +1,4 @@
+import { campaignPost, campaignState } from './promotion-campaign';
 import type { Question } from './questions';
 import { postingAt, questionDay, promoSlots, type PromoSlot } from './daily-clock';
 import morningCopy from './promotion-life-morning.json';
@@ -12,6 +13,7 @@ export class PromoError extends Error {
 }
 const shorten = (text: string, n: number) => Array.from(text.replace(/\s+/g, ' ').trim()).slice(0, n).join('');
 export function promoContent(day: string, topic: PromoTopic, origin: string, slot: PromoSlot = 'morning') {
+  if (campaignState(day) === 'completed') return { text: '', image: '', dueAt: postingAt(day, slot) };
   const q = topic.question;
   const dayNumber = Math.floor((Date.parse(day + 'T00:00:00Z') - Date.parse('2026-10-14T00:00:00Z')) / 86400000);
   const modulo = (n: number, length: number) => ((n % length) + length) % length;
@@ -23,7 +25,11 @@ export function promoContent(day: string, topic: PromoTopic, origin: string, slo
   const option = (index: number) => shorten(q.options[index][0].replace(/https?:\/\/\S+/g, ''), 90);
   const morning = (morningCopy as Record<string, string>)[q.title[0]]
     || `${title}\n\n한쪽은 “${option(0)}”.\n다른 한쪽은 “${option(1)}”.\n\n내 일이라면 어느 쪽을 고르게 될까.\n그렇게 고르는 이유도 듣고 싶어.`;
-  const text = slot === 'morning' ? morning : group.posts[modulo(dayNumber, group.posts.length)];
+  const planned = campaignPost(day, slot);
+  // Administrator-scheduled questions keep their own matching morning copy.
+  const text = planned && (slot !== 'morning' || planned.questionTitle === q.title[0])
+    ? planned.text
+    : slot === 'morning' ? morning : group.posts[modulo(dayNumber, group.posts.length)];
   if (Array.from(text).length > 480) throw new PromoError('게시 글이 글자 제한을 넘었어요.');
   return { text, image: '', dueAt: postingAt(day, slot) };
 }
@@ -54,6 +60,7 @@ export async function promoTables(db: D1Database) {
   ]);
 }
 export async function createBufferPost(config: PromoConfig, content: ReturnType<typeof promoContent>, draft: boolean, fetcher: typeof fetch = fetch) {
+  if (!content.text.trim()) throw new PromoError('100일 원고가 종료됐어요. 새 원고를 추가해 주세요.');
   const data = await bufferRequest<{ createPost: { post?: { id: string; dueAt?: string }; message?: string } }>(config, `mutation { createPost(input: { text: ${JSON.stringify((draft ? '[연결 테스트 초안]\n' : '') + content.text)} channelId: ${JSON.stringify(config.channelId)} schedulingType: automatic mode: ${draft ? 'addToQueue' : 'customScheduled'} ${draft ? 'saveToDraft: true' : 'dueAt: ' + JSON.stringify(content.dueAt)} ${content.image ? 'assets: [{ image: { url: ' + JSON.stringify(content.image) + ' } }]' : ''} }) { ... on PostActionSuccess { post { id dueAt } } ... on MutationError { message } } }`, fetcher, true);
   if (!data.createPost.post?.id) throw new PromoError('Buffer에서 게시물을 만들지 못했어요. Buffer 연결·권한·이미지 주소를 확인해 주세요.');
   return data.createPost.post;
@@ -67,6 +74,7 @@ export async function runDailyPromotion(db: D1Database, config: PromoConfig, get
   const setting = await db.prepare('SELECT enabled FROM promotion_settings WHERE id=1').first<{ enabled: number }>();
   if (!setting?.enabled) return { status: 'disabled' };
   const day = questionDay(now), dueAt = postingAt(day, slot);
+  if (campaignState(day) === 'completed') return { status: 'campaign_completed' };
   const recordChannel = slot === 'morning' ? config.channelId : config.channelId + ':' + slot;
   const due = Date.parse(dueAt);
   // Prepare each slot 30–5 minutes before its posting time in Seoul.
